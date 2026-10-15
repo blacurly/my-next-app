@@ -1,5 +1,5 @@
 import "./globals.css";
-
+import ChatWidget from "@/components/ChatWidget";
 import localFont from "next/font/local";
 
 import Navbar from "@/components/Navbar";
@@ -43,6 +43,7 @@ export default function RootLayout({ children }) {
 
               <main className="flex-1">
                 {children}
+                <ChatWidget />
               </main>
 
               <Footer />
