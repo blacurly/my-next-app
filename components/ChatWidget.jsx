@@ -1,8 +1,9 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+
+const CHAT_DATA_NOTICE_VERSION = "v1";
 
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,9 +11,18 @@ export default function ChatWidget() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [sessionId, setSessionId] = useState("");
+  const [consent, setConsent] = useState(false);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Generate the anonymous session ID in the browser, after mounting.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.crypto?.randomUUID) {
+      setSessionId(window.crypto.randomUUID());
+    }
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -24,7 +34,22 @@ export default function ChatWidget() {
     event.preventDefault();
 
     const text = question.trim();
+
     if (!text || loading) return;
+
+    if (!consent) {
+      setError(
+        "Silakan baca pemberitahuan dan setujui pengolahan data sebelum memulai percakapan."
+      );
+      return;
+    }
+
+    if (!sessionId) {
+      setError(
+        "Sesi chat belum siap. Silakan tunggu sebentar, lalu coba kembali."
+      );
+      return;
+    }
 
     setMessages((prev) => [...prev, { role: "user", content: text }]);
     setQuestion("");
@@ -35,7 +60,12 @@ export default function ChatWidget() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: text }),
+        body: JSON.stringify({
+          question: text,
+          sessionId,
+          consent,
+          consentNoticeVersion: CHAT_DATA_NOTICE_VERSION,
+        }),
       });
 
       const data = await response.json();
@@ -199,11 +229,41 @@ export default function ChatWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
+          {/* Input and data notice */}
           <form
             onSubmit={sendMessage}
             className="shrink-0 border-t border-[#303033] bg-[#111113] p-3"
           >
+            <div className="mb-3 rounded-xl border border-[#303033] bg-[#171719] p-3">
+              <p className="mb-2 text-xs font-semibold text-white">
+                Pemberitahuan pengolahan data
+              </p>
+              <p className="text-[11px] leading-5 text-gray-300">
+                Jika kamu menyetujui, percakapan dapat disimpan dalam bentuk
+                yang diminimalkan atau disamarkan untuk evaluasi dan peningkatan
+                kualitas chatbot. Hindari menuliskan nama, alamat, nomor telepon,
+                atau detail lain yang dapat mengidentifikasi dirimu maupun orang
+                lain. Jangan gunakan chatbot ini untuk keadaan darurat. Lihat
+                kebijakan privasi Virtual Safe Space untuk informasi mengenai
+                tujuan, masa penyimpanan, akses, dan permintaan penghapusan data.
+              </p>
+
+              <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs leading-5 text-gray-200">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(event) => setConsent(event.target.checked)}
+                  disabled={loading}
+                  className="mt-1 h-4 w-4 shrink-0 accent-white"
+                />
+                <span>
+                  Saya telah membaca pemberitahuan di atas dan menyetujui
+                  pengolahan percakapan untuk evaluasi serta peningkatan kualitas
+                  chatbot.
+                </span>
+              </label>
+            </div>
+
             <div className="flex items-end gap-2">
               <label htmlFor="vss-question" className="sr-only">
                 Tulis pertanyaan
@@ -223,13 +283,13 @@ export default function ChatWidget() {
                 placeholder="Tulis pertanyaanmu..."
                 rows={2}
                 maxLength={4000}
-                disabled={loading}
+                disabled={loading || !consent}
                 className="min-w-0 flex-1 resize-none rounded-xl border border-[#303033] bg-[#171719] px-3 py-2 text-sm leading-5 text-white placeholder:text-gray-500 outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-white/10 disabled:cursor-not-allowed disabled:opacity-60"
               />
 
               <button
                 type="submit"
-                disabled={loading || !question.trim()}
+                disabled={loading || !question.trim() || !consent || !sessionId}
                 aria-label="Kirim pesan"
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-lg font-semibold text-black transition hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#111113] disabled:cursor-not-allowed disabled:opacity-40"
               >

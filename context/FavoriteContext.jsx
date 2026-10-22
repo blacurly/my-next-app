@@ -1,3 +1,4 @@
+
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
@@ -17,9 +18,43 @@ export function FavoriteProvider({ children }) {
       return;
     }
 
-    fetch("/api/favorites")
-      .then((res) => res.json())
-      .then(setFavorites);
+    let cancelled = false;
+
+    async function loadFavorites() {
+      try {
+        const res = await fetch("/api/favorites");
+
+        if (!res.ok) {
+          throw new Error(
+            `Gagal memuat favorites (HTTP ${res.status})`
+          );
+        }
+
+        const data = await res.json();
+
+        if (!Array.isArray(data)) {
+          throw new Error(
+            "Respons favorites bukan berupa array."
+          );
+        }
+
+        if (!cancelled) {
+          setFavorites(data);
+        }
+      } catch (error) {
+        console.error("Gagal memuat favorites:", error);
+
+        if (!cancelled) {
+          setFavorites([]);
+        }
+      }
+    }
+
+    loadFavorites();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isLoggedIn, loading]);
 
   async function addFavorite(user) {
@@ -28,31 +63,71 @@ export function FavoriteProvider({ children }) {
       return;
     }
 
-    const res = await fetch("/api/favorites", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: user.id }),
-    });
+    try {
+      const res = await fetch("/api/favorites", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+        }),
+      });
 
-    if (res.ok) {
+      if (!res.ok) {
+        throw new Error(
+          `Gagal menambahkan favorite (HTTP ${res.status})`
+        );
+      }
+
       const saved = await res.json();
-      setFavorites((prev) => [...prev, saved]);
+
+      setFavorites((prev) => {
+        const alreadyExists = prev.some(
+          (item) => item.user_id === saved.user_id
+        );
+
+        return alreadyExists ? prev : [...prev, saved];
+      });
+    } catch (error) {
+      console.error("Gagal menambahkan favorite:", error);
+      alert("Gagal menambahkan favorite. Silakan coba lagi.");
     }
   }
 
   async function removeFavorite(userId) {
-    const res = await fetch(`/api/favorites/${userId}`, { method: "DELETE" });
+    try {
+      const res = await fetch(`/api/favorites/${userId}`, {
+        method: "DELETE",
+      });
 
-    if (res.ok) {
-      setFavorites((prev) => prev.filter((f) => f.user_id !== userId));
+      if (!res.ok) {
+        throw new Error(
+          `Gagal menghapus favorite (HTTP ${res.status})`
+        );
+      }
+
+      setFavorites((prev) =>
+        prev.filter((item) => item.user_id !== userId)
+      );
+    } catch (error) {
+      console.error("Gagal menghapus favorite:", error);
+      alert("Gagal menghapus favorite. Silakan coba lagi.");
     }
   }
 
   function isFavorite(userId) {
-    return favorites.some((f) => f.user_id === userId);
+    return favorites.some(
+      (item) => item.user_id === userId
+    );
   }
 
-  const value = { favorites, addFavorite, removeFavorite, isFavorite };
+  const value = {
+    favorites,
+    addFavorite,
+    removeFavorite,
+    isFavorite,
+  };
 
   return (
     <FavoriteContext.Provider value={value}>
@@ -63,8 +138,12 @@ export function FavoriteProvider({ children }) {
 
 export function useFavorite() {
   const context = useContext(FavoriteContext);
+
   if (context === undefined) {
-    throw new Error("useFavorite harus dipakai di dalam <FavoriteProvider>");
+    throw new Error(
+      "useFavorite harus dipakai di dalam <FavoriteProvider>"
+    );
   }
+
   return context;
 }

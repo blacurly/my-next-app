@@ -58,10 +58,10 @@ export default function Home() {
 
             <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
               <Link
-                href="/services"
+                href="/recommendations"
                 className={cn(buttonVariants({ size: "lg" }), "rounded-full px-6 shadow-lg shadow-primary/20")}
               >
-                Explore Services
+                Try Our Recommendation System
                 <ArrowRight className="size-4" />
               </Link>
 

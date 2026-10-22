@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timezone
 
 import fitz
+#import pymupdf as fitz
 
 from .config import INCOMING_DIR, RAW_PAGES_FILE
 

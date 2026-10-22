@@ -89,6 +89,15 @@ export default function Navbar() {
           >
             {favoritesLink.label}
           </Link>
+          <Link
+            href="/vision"
+            className={cn(
+             buttonVariants({ size: "sm" }),
+             "rounded-full bg-emerald-500 text-white hover:bg-emerald-600 whitespace-nowrap"
+            )}
+          >
+            Try Our Detection System
+          </Link>
         </div>
         {submitted && <span>Hi, {name} 👋</span>}
         <Link
